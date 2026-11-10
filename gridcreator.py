@@ -1,8 +1,10 @@
 import os
 
+from pyproj import Transformer
+from shapely import transform, intersection
 from shapely.geometry import box
 import geopandas as gpd
-from tools import densify_polygon_ellipsoidal
+from tools import densify_polygon_ellipsoidal, densify_polygon_utm
 
 BANDS = "CDEFGHJKLMNPQRSTUVWX"  # 80°S bis 84°N, ohne I und O
 
@@ -29,6 +31,29 @@ def gzd_polygons():
             poly = box(lon0, lat0, lon1, lat1)
             poly_dense = densify_polygon_ellipsoidal(poly, 50000)
             yield {"zone": zone, "band": band, "epsg": epsg, "hemisphere": hemisphere, "poly": poly_dense}
+
+def subgrids(bands):
+    for i, band in bands.iterrows():
+        print(band["zone"], band["band"])
+        band_geom = band["geometry"]
+        transformer_to_utm = Transformer.from_crs("EPSG:4326", f"EPSG:{band['epsg']}", always_xy=True)
+        transformer_from_utm = Transformer.from_crs(f"EPSG:{band['epsg']}", "EPSG:4326", always_xy=True)
+        band_geom_utm = transform(band_geom, transformer_to_utm.transform, interleaved=False)
+        min_east, min_north, max_east, max_north = band_geom_utm.bounds
+        min_east = int((min_east // 100000) * 100000)
+        min_north = int((min_north // 100000) * 100000)
+        max_east = int((max_east // 100000) * 100000)
+        max_north = int((max_north // 100000) * 100000)
+        for east in range(min_east, max_east + 100000, 100000):
+            for north in range(min_north, max_north + 100000, 100000):
+                poly = box(east, north, east + 100000, north + 100000)
+                poly_dense = densify_polygon_utm(poly, 100000)
+                poly_clipped = intersection(poly_dense, band_geom_utm)
+                print(east, north, poly_clipped.geom_type, poly_clipped.area)
+
+
+
+
 
 if __name__ == '__main__':
     have_bands = False
@@ -57,6 +82,8 @@ if __name__ == '__main__':
     if have_zones == False:
         zones = bands[["zone", "epsg", "hemisphere", "geometry"]].dissolve(by=["zone", "epsg"]).reset_index()
         zones.to_file("output/mgrs.gpkg", driver="GPKG", layer="zones")
+
+    subgrids(bands)
 
 
 
