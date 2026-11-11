@@ -5,21 +5,21 @@ from shapely import transform, intersection
 from shapely.geometry import box
 import geopandas as gpd
 from tools import densify_polygon_ellipsoidal, densify_polygon_utm
+import mgrs
 
-BANDS = "CDEFGHJKLMNPQRSTUVWX"  # 80°S bis 84°N, ohne I und O
+BANDS = "CDEFGHJKLMNPQRSTUVWX"
 
 def gzd_polygons():
-    """Liefert (Bezeichner, Polygon in WGS84) für alle UTM-Grid-Zones."""
     for i, band in enumerate(BANDS):
         lat0 = -80 + 8 * i
-        lat1 = 84 if band == "X" else lat0 + 8   # Band X ist 12° hoch
+        lat1 = 84 if band == "X" else lat0 + 8
         for zone in range(1, 61):
             lon0 = -180 + 6 * (zone - 1)
             lon1 = lon0 + 6
-            if band == "V":                       # Sonderfall Norwegen
+            if band == "V":
                 if zone == 31: lon1 = 3
                 elif zone == 32: lon0 = 3
-            if band == "X":                       # Sonderfall Svalbard
+            if band == "X":
                 if zone in (32, 34, 36):
                     continue
                 if zone == 31: lon1 = 9
@@ -33,6 +33,8 @@ def gzd_polygons():
             yield {"zone": zone, "band": band, "epsg": epsg, "hemisphere": hemisphere, "poly": poly_dense}
 
 def subgrids(bands):
+    m = mgrs.MGRS()
+    g100k = []
     for i, band in bands.iterrows():
         print(band["zone"], band["band"])
         band_geom = band["geometry"]
@@ -49,10 +51,16 @@ def subgrids(bands):
                 poly = box(east, north, east + 100000, north + 100000)
                 poly_dense = densify_polygon_utm(poly, 100000)
                 poly_clipped = intersection(poly_dense, band_geom_utm)
-                print(east, north, poly_clipped.geom_type, poly_clipped.area)
-
-
-
+                if poly_clipped.area > 0:
+                    mid_point = poly_clipped.centroid
+                    mid_point_wgs84 = transform(mid_point, transformer_from_utm.transform, interleaved=False)
+                    poly_wgs84 = transform(poly_clipped, transformer_from_utm.transform, interleaved=False)
+                    lon, lat = mid_point_wgs84.coords[0]
+                    cell = m.toMGRS(lat, lon)[3:5]
+                    print(band["zone"], band["band"], cell)
+                    g100k.append({"zone": band["zone"], "band": band["band"], "cell": cell, "geometry": poly_wgs84})
+    g100k_df = gpd.GeoDataFrame(g100k, crs="EPSG:4326")
+    g100k_df.to_file("output/mgrs.gpkg", layer="g100k", driver="GPKG")
 
 
 if __name__ == '__main__':
