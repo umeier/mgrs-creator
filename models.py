@@ -9,7 +9,8 @@ class Zone(Base):
 
     id = Column(Integer, primary_key=True)
     zone = Column(Integer)
-    hemisphere = Column(String, length=1)
+    hemisphere = Column(String(1))
+    crs = Column(Integer)
     geom = Column(Geometry(geometry_type='POLYGON', srid=4326, spatial_index=True))
 
 class Band(Base):
@@ -17,8 +18,9 @@ class Band(Base):
 
     id = Column(Integer, primary_key=True)
     zone = Column(Integer)
-    band = Column(String, length=1)
-    hemisphere = Column(String, length=1)
+    band = Column(String(1))
+    hemisphere = Column(String(1))
+    crs = Column(Integer)
     geom = Column(Geometry(geometry_type='POLYGON', srid=4326, spatial_index=True))
 
 class Grid100km(Base):
@@ -26,9 +28,10 @@ class Grid100km(Base):
 
     id = Column(Integer, primary_key=True)
     zone = Column(Integer)
-    band = Column(String, length=1)
-    hemisphere = Column(String, length=1)
-    square = Column(String, length=2)
+    band = Column(String(1))
+    hemisphere = Column(String(1))
+    square = Column(String(2))
+    crs = Column(Integer)
     geom = Column(Geometry(geometry_type='POLYGON', srid=4326, spatial_index=True))
 
 class Line(Base):
@@ -36,9 +39,10 @@ class Line(Base):
 
     id = Column(Integer, primary_key=True)
     zone = Column(Integer)
-    band = Column(String, length=1)
-    hemisphere = Column(String, length=1)
-    square = Column(String, length=2)
-    orientation = Column(String, length=1)
+    band = Column(String(1))
+    hemisphere = Column(String(1))
+    square = Column(String(1))
+    crs = Column(Integer)
+    orientation = Column(String(1))
     val = Column(Integer)
     geom = Column(Geometry(geometry_type='LINESTRING', srid=4326, spatial_index=True))
