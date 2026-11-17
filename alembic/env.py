@@ -7,6 +7,7 @@ from geoalchemy2 import alembic_helpers
 
 from alembic import context
 
+from database import get_database_url
 from models import Base
 
 # this is the Alembic Config object, which provides
@@ -42,7 +43,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -65,8 +66,10 @@ def run_migrations_online() -> None:
 
     """
 
+    engine_config = config.get_section(config.config_ini_section, {})
+    engine_config["sqlalchemy.url"] = get_database_url()
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        engine_config,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

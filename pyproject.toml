@@ -12,4 +12,6 @@ dependencies = [
     "psycopg>=3.3.8",
     "pyproj>=3.8.0",
     "shapely>=2.2.0",
+    "sqlalchemy>=2.1.8",
+    "tqdm>=4.70.1",
 ]
