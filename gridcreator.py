@@ -57,6 +57,8 @@ def make_lines(gridsquare):
         dense = densify_line_utm(LineString(endpoints), densify_distance)
         clipped = intersection(dense, geometry)
         if clipped.geom_type != 'LineString':
+            if clipped.geom_type == 'Point':
+                return
             extracted_lines = [geom for geom in clipped.geoms if isinstance(geom, LineString)]
             coords = [pt for line in extracted_lines for pt in line.coords]
             clipped = LineString(coords)
