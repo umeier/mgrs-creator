@@ -1,5 +1,5 @@
 import numpy as np
-from shapely import distance, LineString
+from shapely import LineString
 from shapely.geometry import Polygon
 import pyproj
 
@@ -62,7 +62,7 @@ def _densify_cartesian_line(p1, p2, max_distance_meters):
     new_coords = [line.interpolate(distance) for distance in distances]
     if distances[-1] < line.length:
         new_coords.append(line.interpolate(line.length))
-    return new_coords
+    return LineString(new_coords)
 
 def densify_line_utm(line, scale):
     p1, p2 = line.coords[0], line.coords[-1]
@@ -84,3 +84,5 @@ def densify_polygon_utm(polygon_utm, scale):
     dense_ints = [process_ring(interior) for interior in polygon_utm.interiors]
 
     return Polygon(dense_ext, dense_ints)
+
+
