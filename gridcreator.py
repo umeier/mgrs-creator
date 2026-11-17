@@ -14,36 +14,46 @@ from tools import densify_polygon_utm, densify_line_utm
 
 
 def make_gridsquares(band):
+    grid_size = 100_000
+    densify_distance = 500_000
+    wgs84_crs = "EPSG:4326"
+    utm_crs = f"EPSG:{band.crs}"
+
+    to_utm = Transformer.from_crs(wgs84_crs, utm_crs, always_xy=True)
+    from_utm = Transformer.from_crs(utm_crs, wgs84_crs, always_xy=True)
+    band_utm = transform(to_shape(band.geom), to_utm.transform, interleaved=False)
+    min_east, min_north, max_east, max_north = (
+        int((bound // grid_size) * grid_size) for bound in band_utm.bounds
+    )
+
+    mgrs_converter = mgrs.MGRS()
     gridsquares = []
-    m = mgrs.MGRS()
-    band_geom = to_shape(band.geom)
-    epsg = band.crs
-    transformer_to_utm = Transformer.from_crs("EPSG:4326", f"EPSG:{epsg}", always_xy=True)
-    transformer_from_utm = Transformer.from_crs(f"EPSG:{epsg}", "EPSG:4326", always_xy=True)
-    band_geom_utm = transform(band_geom, transformer_to_utm.transform, interleaved=False)
-    min_east, min_north, max_east, max_north = band_geom_utm.bounds
-    min_east = int((min_east // 100000) * 100000)
-    min_north = int((min_north // 100000) * 100000)
-    max_east = int((max_east // 100000) * 100000)
-    max_north = int((max_north // 100000) * 100000)
-    for east in range(min_east, max_east + 100000, 100000):
-        for north in range(min_north, max_north + 100000, 100000):
-            poly = box(east, north, east + 100000, north + 100000)
-            poly_dense = densify_polygon_utm(poly, 500000)
-            poly_clipped = intersection(poly_dense, band_geom_utm)
-            if poly_clipped.area > 0:
-                mid_point = poly_clipped.centroid
-                mid_point_wgs84 = transform(mid_point, transformer_from_utm.transform, interleaved=False)
-                poly_wgs84 = transform(poly_clipped, transformer_from_utm.transform, interleaved=False)
-                lon, lat = mid_point_wgs84.coords[0]
-                cell = m.toMGRS(lat, lon)[3:5]
-                current_subgrid = GridSquare(band=band, designator=cell, geom=from_shape(poly_wgs84, srid=4326))
-                gridsquares.append(current_subgrid)
+    for east in range(min_east, max_east + grid_size, grid_size):
+        for north in range(min_north, max_north + grid_size, grid_size):
+            square = box(east, north, east + grid_size, north + grid_size)
+            dense_square = densify_polygon_utm(square, densify_distance)
+            clipped_square = intersection(dense_square, band_utm)
+            if clipped_square.area <= 0:
+                continue
+
+            centroid_wgs84 = transform(
+                clipped_square.centroid, from_utm.transform, interleaved=False
+            )
+            square_wgs84 = transform(
+                clipped_square, from_utm.transform, interleaved=False
+            )
+            lon, lat = centroid_wgs84.coords[0]
+            designator = mgrs_converter.toMGRS(lat, lon)[3:5]
+            gridsquares.append(GridSquare(
+                band=band,
+                designator=designator,
+                geom=from_shape(square_wgs84, srid=4326),
+            ))
     return gridsquares
 
 def make_lines(gridsquare):
-    spacing = 1000
-    densify_distance = 100000
+    spacing = 1_000
+    densify_distance = 100_000
     utm_crs = f"EPSG:{gridsquare.band.crs}"
     to_utm = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
     from_utm = Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
