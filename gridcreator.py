@@ -64,6 +64,8 @@ def make_lines(gridsquare):
 
     def add_line(coordinate, endpoints):
         dense = densify_line_utm(LineString(endpoints), densify_distance)
+        if dense is None:
+            return
         clipped = intersection(dense, geometry)
         if clipped.geom_type != 'LineString':
             if clipped.geom_type == 'Point':

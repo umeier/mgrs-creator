@@ -59,10 +59,14 @@ def densify_polygon_ellipsoidal(polygon_4326, scale):
 def _densify_cartesian_line(p1, p2, max_distance_meters):
     line = LineString([p1, p2])
     distances = np.arange(0, line.length, max_distance_meters)
-    new_coords = [line.interpolate(distance) for distance in distances]
-    if distances[-1] < line.length:
-        new_coords.append(line.interpolate(line.length))
-    return LineString(new_coords)
+    if len(distances) > 1:
+        new_coords = [line.interpolate(distance) for distance in distances]
+        if distances[-1] < line.length:
+            new_coords.append(line.interpolate(line.length))
+        return LineString(new_coords)
+    else:
+        return None
+
 
 def densify_line_utm(line, scale):
     p1, p2 = line.coords[0], line.coords[-1]
