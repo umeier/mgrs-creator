@@ -3,10 +3,9 @@ from geoalchemy2.shape import to_shape, from_shape
 from pyproj import Transformer
 from shapely import transform, intersection, LineString
 from shapely.geometry import box
-from shapely.ops import linemerge
-from tqdm import tqdm, trange
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
+from tqdm import tqdm, trange
 
 from database import engine, truncate_all
 from models import Band, GridSquare, Zone, Line
@@ -15,7 +14,7 @@ from tools import densify_polygon_utm, densify_line_utm
 
 def make_gridsquares(band):
     grid_size = 100_000
-    densify_distance = 500_000
+    densify_distance = 100_000
     wgs84_crs = "EPSG:4326"
     utm_crs = f"EPSG:{band.crs}"
 
@@ -93,13 +92,15 @@ def make_lines(gridsquare):
 
 
 if __name__ == '__main__':
+    print("Creating mgrs grid")
 
     with Session(engine) as session:
         zones_total = session.scalar(select(func.count()).select_from(Zone))
         bands_total = session.scalar(select(func.count()).select_from(Band))
 
         if zones_total != 60 or bands_total != 1197:
-            truncate_all(engine)
+            if zones_total != 0 and bands_total != 0:
+                truncate_all(engine)
             for z in trange(1, 61, desc="Creating zones with bands", unit="zone"):
                 zone = Zone(number=z)
                 session.add(zone)
@@ -112,7 +113,8 @@ if __name__ == '__main__':
         gridsquares_total = session.scalar(select(func.count()).select_from(GridSquare))
         stmt = select(Band)
         if gridsquares_total != 69459:
-            truncate_all(engine, exclude=('alembic_version', 'spatial_ref_sys', 'zones', 'bands'))
+            if gridsquares_total != 0:
+                truncate_all(engine, exclude=('alembic_version', 'spatial_ref_sys', 'zones', 'bands'))
             for band in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=bands_total,
                              desc="Creating gridsquares per band", unit="band"):
                 gridsquares = make_gridsquares(band)

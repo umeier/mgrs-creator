@@ -40,7 +40,7 @@ def _densify_axis_aligned_edge(p1, p2, max_distance_meters):
 
 
 def densify_polygon_ellipsoidal(polygon_4326, scale):
-    max_distance_meters = scale * 0.00025
+    max_distance_meters = scale * 0.001
 
     def process_ring(ring):
         coords = list(ring.coords)
@@ -66,17 +66,18 @@ def _densify_cartesian_line(p1, p2, max_distance_meters):
 
 def densify_line_utm(line, scale):
     p1, p2 = line.coords[0], line.coords[-1]
-    max_distance_meters = scale * 0.00025
+    max_distance_meters = scale * 0.001
     return _densify_cartesian_line(p1, p2, max_distance_meters)
 
 def densify_polygon_utm(polygon_utm, scale):
-    max_distance_meters = scale * 0.00025
+    max_distance_meters = scale * 0.001
 
     def process_ring(ring):
         coords = list(ring.coords)
         dense_coords = []
         for i in range(len(coords) -1):
-            dense_coords.extend(_densify_cartesian_line(coords[i], coords[i + 1], max_distance_meters))
+            dense_line = _densify_cartesian_line(coords[i], coords[i + 1], max_distance_meters)
+            dense_coords.extend(dense_line.coords)
         dense_coords.append(coords[-1])
         return dense_coords
 
