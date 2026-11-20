@@ -1,7 +1,32 @@
+import math
+
 import numpy as np
 from shapely import LineString
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 import pyproj
+
+
+def move_point_off_tile_edges(point):
+    max_latitude = math.degrees(math.atan(math.sinh(math.pi)))
+    if (point.is_empty or not math.isfinite(point.x) or not math.isfinite(point.y)
+            or not -180 <= point.x <= 180 or not -max_latitude <= point.y <= max_latitude):
+        raise ValueError("Point must be within the Web Mercator world extent")
+
+    to_mercator = pyproj.Transformer.from_crs(4326, 3857, always_xy=True)
+    to_wgs84 = pyproj.Transformer.from_crs(3857, 4326, always_xy=True)
+    x, y = to_mercator.transform(point.x, point.y)
+    half_world = math.pi * 6378137
+    tile_size = 2 * half_world / (1 << 19)
+
+    def on_edge(value):
+        index = round((value + half_world) / tile_size)
+        return abs(value - (-half_world + index * tile_size)) <= 1e-7
+
+    east, north = on_edge(x), on_edge(y)
+    if not east and not north:
+        return point
+    lon, lat = to_wgs84.transform(x + 10 * east, y + 10 * north)
+    return Point(lon, lat)
 
 
 def _densify_axis_aligned_edge(p1, p2, max_distance_meters):

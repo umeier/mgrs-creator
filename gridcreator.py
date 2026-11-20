@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     with Session(engine) as session:
         lines_total = session.scalar(select(func.count()).select_from(Line))
-        if lines_total == 0:
+        if lines_total != 11703712:
             stmt = select(GridSquare).options(joinedload(GridSquare.band))
             for gridsquare in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=gridsquares_total,
                                    desc="Creating lines per gridsquare", unit="gridsquare"):
