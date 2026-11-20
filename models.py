@@ -54,7 +54,7 @@ class Zone(Base):
                     lon0 = 33
             epsg = (32600 if designator >= "N" else 32700) + self.number
             poly = box(lon0, lat0, lon1, lat1)
-            poly_dense = densify_polygon_ellipsoidal(poly, 1000000)
+            poly_dense = densify_polygon_ellipsoidal(poly, 100_000)
             geoms.append(poly_dense)
             self.bands.append(Band(designator=designator, crs=epsg, geom=from_shape(poly_dense, srid=4326), zone=self))
         self.geom = from_shape(union_all(geoms), srid=4326)

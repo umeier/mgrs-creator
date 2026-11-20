@@ -9,18 +9,19 @@ from tqdm import tqdm, trange
 
 from database import engine, truncate_all
 from models import Band, GridSquare, Zone, Line
-from tools import densify_polygon_utm, densify_line_utm
+from tools import densify_polygon_utm, densify_line_utm, densify_polygon_ellipsoidal
 
 
 def make_gridsquares(band):
     grid_size = 100_000
-    densify_distance = 100_000
+    densify_distance = 10_000
     wgs84_crs = "EPSG:4326"
     utm_crs = f"EPSG:{band.crs}"
 
     to_utm = Transformer.from_crs(wgs84_crs, utm_crs, always_xy=True)
     from_utm = Transformer.from_crs(utm_crs, wgs84_crs, always_xy=True)
-    band_utm = transform(to_shape(band.geom), to_utm.transform, interleaved=False)
+    band_wgs84 = densify_polygon_ellipsoidal(box(*to_shape(band.geom).bounds), densify_distance)
+    band_utm = transform(band_wgs84, to_utm.transform, interleaved=False)
     min_east, min_north, max_east, max_north = (
         int((bound // grid_size) * grid_size) for bound in band_utm.bounds
     )
@@ -52,7 +53,7 @@ def make_gridsquares(band):
 
 def make_lines(gridsquare):
     spacing = 1_000
-    densify_distance = 100_000
+    densify_distance = 10_000
     utm_crs = f"EPSG:{gridsquare.band.crs}"
     to_utm = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
     from_utm = Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
