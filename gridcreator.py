@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     with Session(engine) as session:
         points_total = session.scalar(select(func.count()).select_from(GridSquareLabel))
-        if points_total < 4670904:
+        if points_total != 4670904:
             stmt = select(GridSquare).options(joinedload(GridSquare.band))
             for gridsquare in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=gridsquares_total,
                                    desc="Creating gridpoints per gridsquare", unit="gridsquare"):
