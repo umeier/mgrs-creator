@@ -1,15 +1,16 @@
 import mgrs
 from geoalchemy2.shape import to_shape, from_shape
 from pyproj import Transformer
-from shapely import transform, intersection, LineString
+from shapely import transform, intersection, LineString, Point
 from shapely.geometry import box
+from shapely.lib import covered_by
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
 from tqdm import tqdm, trange
 
 from database import engine, truncate_all
-from models import Band, GridSquare, Zone, Line
-from tools import densify_polygon_utm, densify_line_utm, densify_polygon_ellipsoidal
+from models import Band, GridSquare, Zone, Line, GridSquareLabel
+from tools import densify_polygon_utm, densify_line_utm, densify_polygon_ellipsoidal, move_point_off_tile_edges
 
 
 def make_gridsquares(band):
@@ -93,6 +94,26 @@ def make_lines(gridsquare):
 
     return lines
 
+def make_gridpoints(gridsquare):
+    spacing = 10_000
+    utm_crs = f"EPSG:{gridsquare.band.crs}"
+    to_utm = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
+    from_utm = Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
+    geometry = transform(to_shape(gridsquare.geom), to_utm.transform, interleaved=False)
+    min_east, min_north, max_east, max_north = (
+        int((bound // spacing) * spacing) for bound in geometry.bounds
+    )
+    points = []
+    for east in range(min_east, max_east, spacing):
+        for north in range(min_north, max_north, spacing):
+            p_epsg = Point(east, north)
+            if covered_by(p_epsg, geometry):
+                p_wgs84 = move_point_off_tile_edges(transform(p_epsg, from_utm.transform, interleaved=False))
+                point = GridSquareLabel(geom=from_shape(p_wgs84, srid=4326), gridsquare=gridsquare)
+                points.append(point)
+    return points
+
+
 
 if __name__ == '__main__':
     print("Creating mgrs grid")
@@ -138,4 +159,16 @@ if __name__ == '__main__':
             session.commit()
         lines_total = session.scalar(select(func.count()).select_from(Line))
 
-    print(f"All done! {zones_total} zones, {bands_total} bands, {gridsquares_total} gridsquares, {lines_total} lines")
+    with Session(engine) as session:
+        points_total = session.scalar(select(func.count()).select_from(GridSquareLabel))
+        if points_total < 4670904:
+            stmt = select(GridSquare).options(joinedload(GridSquare.band))
+            for gridsquare in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=gridsquares_total,
+                                   desc="Creating gridpoints per gridsquare", unit="gridsquare"):
+                points = make_gridpoints(gridsquare)
+                session.add_all(points)
+                session.flush()
+            session.commit()
+        points_total = session.scalar(select(func.count()).select_from(GridSquareLabel))
+
+    print(f"All done! {zones_total} zones, {bands_total} bands, {gridsquares_total} gridsquares, {lines_total} lines, {points_total} points")
