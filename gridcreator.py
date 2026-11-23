@@ -76,7 +76,7 @@ def make_lines(gridsquare):
             clipped = LineString(coords)
         if clipped.length == 0:
             return
-        value = coordinate % 100
+        value = int(coordinate // 1000) % 100
         wgs84 = transform(clipped, from_utm.transform, interleaved=False)
         lines.append(Line(
             gridsquare=gridsquare,
@@ -94,13 +94,14 @@ def make_lines(gridsquare):
     return lines
 
 def make_gridpoints(gridsquare):
+    grid_size = 100_000
     spacing = 10_000
     utm_crs = f"EPSG:{gridsquare.band.crs}"
     to_utm = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
     from_utm = Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
     geometry = transform(to_shape(gridsquare.geom), to_utm.transform, interleaved=False)
     min_east, min_north, max_east, max_north = (
-        int((bound // spacing) * spacing) for bound in geometry.bounds
+        int((bound // grid_size) * grid_size) for bound in geometry.bounds
     )
     check_geometry = buffer(geometry, 10)
     points = []
