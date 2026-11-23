@@ -1,9 +1,8 @@
 import mgrs
 from geoalchemy2.shape import to_shape, from_shape
 from pyproj import Transformer
-from shapely import transform, intersection, LineString, Point
+from shapely import transform, intersection, LineString, Point, buffer, covered_by
 from shapely.geometry import box
-from shapely.lib import covered_by
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
 from tqdm import tqdm, trange
@@ -103,11 +102,12 @@ def make_gridpoints(gridsquare):
     min_east, min_north, max_east, max_north = (
         int((bound // spacing) * spacing) for bound in geometry.bounds
     )
+    check_geometry = buffer(geometry, 10)
     points = []
     for east in range(min_east, max_east, spacing):
         for north in range(min_north, max_north, spacing):
             p_epsg = Point(east, north)
-            if covered_by(p_epsg, geometry):
+            if covered_by(p_epsg, check_geometry):
                 p_wgs84 = move_point_off_tile_edges(transform(p_epsg, from_utm.transform, interleaved=False))
                 point = GridSquareLabel(geom=from_shape(p_wgs84, srid=4326), gridsquare=gridsquare)
                 points.append(point)
