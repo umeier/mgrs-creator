@@ -105,8 +105,8 @@ def make_gridpoints(gridsquare):
     )
     check_geometry = buffer(geometry, 10)
     points = []
-    for east in range(min_east, max_east, spacing):
-        for north in range(min_north, max_north, spacing):
+    for east in range(min_east, max_east + spacing, spacing):
+        for north in range(min_north, max_north + spacing, spacing):
             p_epsg = Point(east, north)
             if covered_by(p_epsg, check_geometry):
                 p_wgs84 = move_point_off_tile_edges(transform(p_epsg, from_utm.transform, interleaved=False))
