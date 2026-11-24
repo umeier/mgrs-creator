@@ -89,10 +89,10 @@ def make_lines(gridsquare):
             geom=from_shape(wgs84, srid=4326),
         ))
 
-    for east in range(min_east, max_east + spacing, spacing):
-        add_line(east, [(east, min_north), (east, max_north)])
-    for north in range(min_north, max_north + spacing, spacing):
-        add_line(north, [(min_east, north), (max_east, north)])
+    for east in range(min_east, max_east + 2 * spacing, spacing):
+        add_line(east, [(east, min_north), (east, max_north + spacing)])
+    for north in range(min_north, max_north + 2 * spacing, spacing):
+        add_line(north, [(min_east, north), (max_east + spacing, north)])
 
     return lines
 
