@@ -130,7 +130,7 @@ if __name__ == '__main__':
         if zones_total != 60 or bands_total != 1197:
             if zones_total != 0 and bands_total != 0:
                 truncate_all(engine)
-            for z in trange(1, 61, desc="Creating zones with bands", unit="zone"):
+            for z in trange(1, 61, desc="Creating zones with bands", unit="zone", dynamic_ncols=True):
                 zone = Zone(number=z)
                 session.add(zone)
                 session.commit()
@@ -145,7 +145,7 @@ if __name__ == '__main__':
             if gridsquares_total != 0:
                 truncate_all(engine, exclude=('alembic_version', 'spatial_ref_sys', 'zones', 'bands'))
             for band in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=bands_total,
-                             desc="Creating gridsquares per band", unit="band"):
+                             desc="Creating gridsquares per band", unit="band", dynamic_ncols=True):
                 gridsquares = make_gridsquares(band)
                 session.add_all(gridsquares)
                 session.flush()
@@ -154,10 +154,10 @@ if __name__ == '__main__':
 
     with Session(engine) as session:
         lines_total = session.scalar(select(func.count()).select_from(Line))
-        if lines_total != 11703712:
+        if lines_total != 11703999:
             stmt = select(GridSquare).options(joinedload(GridSquare.band))
             for gridsquare in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=gridsquares_total,
-                                   desc="Creating lines per gridsquare", unit="gridsquare"):
+                                   desc="Creating lines per gridsquare", unit="gridsquare", dynamic_ncols=True):
                 lines = make_lines(gridsquare)
                 session.add_all(lines)
                 session.flush()
@@ -166,10 +166,10 @@ if __name__ == '__main__':
 
     with Session(engine) as session:
         points_total = session.scalar(select(func.count()).select_from(GridSquareLabel))
-        if points_total != 4670904:
+        if points_total != 5129879:
             stmt = select(GridSquare).options(joinedload(GridSquare.band))
             for gridsquare in tqdm(session.scalars(stmt.execution_options(yield_per=100)), total=gridsquares_total,
-                                   desc="Creating gridpoints per gridsquare", unit="gridsquare"):
+                                   desc="Creating gridpoints per gridsquare", unit="gridsquare", dynamic_ncols=True):
                 points = make_gridpoints(gridsquare)
                 session.add_all(points)
                 session.flush()
