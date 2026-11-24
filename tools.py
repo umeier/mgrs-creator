@@ -86,7 +86,7 @@ def _densify_cartesian_line(p1, p2, max_distance_meters):
     if len(distances) > 1:
         new_coords = [line.interpolate(distance) for distance in distances]
         if distances[-1] < line.length:
-            new_coords.append(line.interpolate(line.length))
+            new_coords.append(p2)
         return LineString(new_coords)
     else:
         return None

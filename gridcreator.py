@@ -1,3 +1,5 @@
+import math
+
 import mgrs
 from geoalchemy2.shape import to_shape, from_shape
 from pyproj import Transformer
@@ -51,6 +53,7 @@ def make_gridsquares(band):
             ))
     return gridsquares
 
+
 def make_lines(gridsquare):
     spacing = 1_000
     densify_distance = 10_000
@@ -93,27 +96,28 @@ def make_lines(gridsquare):
 
     return lines
 
+
 def make_gridpoints(gridsquare):
-    grid_size = 100_000
     spacing = 10_000
     utm_crs = f"EPSG:{gridsquare.band.crs}"
     to_utm = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
     from_utm = Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
     geometry = transform(to_shape(gridsquare.geom), to_utm.transform, interleaved=False)
     min_east, min_north, max_east, max_north = (
-        int((bound // grid_size) * grid_size) for bound in geometry.bounds
+        int(math.ceil(bound / spacing) * spacing) for bound in geometry.bounds
     )
-    check_geometry = buffer(geometry, 10)
+    minx, miny, maxx, maxy = (round(b) for b in geometry.bounds)
+    check_geometry = buffer(geometry, 1000)
     points = []
-    for east in range(min_east, max_east + spacing, spacing):
-        for north in range(min_north, max_north + spacing, spacing):
-            p_epsg = Point(east, north)
-            if covered_by(p_epsg, check_geometry):
-                p_wgs84 = move_point_off_tile_edges(transform(p_epsg, from_utm.transform, interleaved=False))
-                point = GridSquareLabel(geom=from_shape(p_wgs84, srid=4326), gridsquare=gridsquare)
-                points.append(point)
+    for east in range(min_east, max_east, spacing):
+        for north in range(min_north, max_north, spacing):
+            if east != maxx and north != maxy:
+                p_epsg = Point(east, north)
+                if covered_by(p_epsg, check_geometry):
+                    p_wgs84 = move_point_off_tile_edges(transform(p_epsg, from_utm.transform, interleaved=False))
+                    point = GridSquareLabel(geom=from_shape(p_wgs84, srid=4326), gridsquare=gridsquare)
+                    points.append(point)
     return points
-
 
 
 if __name__ == '__main__':
@@ -172,4 +176,5 @@ if __name__ == '__main__':
             session.commit()
         points_total = session.scalar(select(func.count()).select_from(GridSquareLabel))
 
-    print(f"All done! {zones_total} zones, {bands_total} bands, {gridsquares_total} gridsquares, {lines_total} lines, {points_total} points")
+    print(
+        f"All done! {zones_total} zones, {bands_total} bands, {gridsquares_total} gridsquares, {lines_total} lines, {points_total} points")
